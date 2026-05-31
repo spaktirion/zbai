@@ -34,14 +34,17 @@ export function StationList({ className }: StationListProps) {
   };
 
   const handleStationClick = (station: typeof stations[number]) => {
+    console.log('[STATION-CLICK] remoteConnected:', remoteConnected, 'station:', station.name);
     if (remoteConnected) {
       // Remote mode: send commands to server
       if (currentStation?.id === station.id) {
         // Toggle play on server
         const state = useAetherStore.getState();
+        console.log('[STATION-CLICK] toggling play, remotePlaying:', state.remotePlaying);
         sendRemoteCommand(state.remotePlaying ? 'PAUSE' : 'PLAY');
       } else {
         // Tell server to play this station (send name+url so server can play even if not in its list)
+        console.log('[STATION-CLICK] sending PLAY_STATION:', station.name, station.url);
         playStation(station);
         sendRemoteCommand('PLAY_STATION', { name: station.name, url: station.url });
       }

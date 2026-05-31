@@ -34,9 +34,22 @@ export function createServer(name: string, callbacks: ServerCallbacks) {
       connections.push(conn);
       callbacks.onRemoteConnected();
 
-      conn.on('data', (data: any) => {
+      conn.on('data', (raw: any) => {
+        // PeerJS may deliver ArrayBuffer — always parse to object
+        let data: any = raw;
+        if (raw instanceof ArrayBuffer) {
+          try { data = JSON.parse(new TextDecoder().decode(raw)); } catch { return; }
+        } else if (typeof raw === 'string') {
+          try { data = JSON.parse(raw); } catch { data = raw; }
+        }
+        console.log('[AETHER-SERVER] received data:', JSON.stringify(data));
         if (data?.type === 'command') {
-          callbacks.onCommand(data.command, data.payload);
+          // Deserialize payload if it was JSON-stringified
+          let payload = data.payload;
+          if (typeof payload === 'string') {
+            try { payload = JSON.parse(payload); } catch { /* keep string */ }
+          }
+          callbacks.onCommand(data.command, payload);
         }
       });
 
@@ -100,7 +113,13 @@ export function createRemote(serverName: string, callbacks: RemoteCallbacks) {
         callbacks.onConnected();
       });
 
-      conn.on('data', (data: any) => {
+      conn.on('data', (raw: any) => {
+        let data: any = raw;
+        if (raw instanceof ArrayBuffer) {
+          try { data = JSON.parse(new TextDecoder().decode(raw)); } catch { return; }
+        } else if (typeof raw === 'string') {
+          try { data = JSON.parse(raw); } catch { data = raw; }
+        }
         if (data?.type === 'status') {
           callbacks.onStatus(data);
         }
@@ -129,7 +148,13 @@ export function createRemote(serverName: string, callbacks: RemoteCallbacks) {
 
   function sendCommand(command: string, payload?: unknown) {
     if (conn) {
-      try { conn.send({ type: 'command', command, payload }); } catch { /* ignore */ }
+      // JSON-serialize payload to survive PeerJS BinaryPack
+      const serialized = payload != null ? JSON.stringify(payload) : payload;
+      const msg = { type: 'command', command, payload: serialized };
+      console.log('[AETHER-REMOTE] sending:', JSON.stringify(msg));
+      try { conn.send(msg); } catch (e) { console.error('[AETHER-REMOTE] send error:', e); }
+    } else {
+      console.warn('[AETHER-REMOTE] sendCommand called but conn is null');
     }
   }
 

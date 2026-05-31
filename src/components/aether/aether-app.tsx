@@ -71,6 +71,7 @@ export function AetherApp() {
       },
       onCommand: (cmd, _payload) => {
         const store = useAetherStore.getState();
+        console.log('[AETHER-APP/SERVER] received command:', cmd, 'payload:', JSON.stringify(_payload));
         switch (cmd) {
           case 'PLAY':
             if (!store.isPlaying) store.togglePlay();
