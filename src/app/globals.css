@@ -408,6 +408,22 @@ input[type="range"]::-moz-range-thumb {
     top: 0;
     z-index: 10;
     flex-shrink: 0;
+    transition: opacity 0.2s ease, max-height 0.25s ease;
+    max-height: 500px;
+    overflow: hidden;
+  }
+
+  .player-layout .player-controls-area.player-controls-hidden {
+    opacity: 0;
+    max-height: 0;
+    padding: 0;
+    margin: 0;
+    border: none;
+  }
+
+  .player-layout .player-controls-area.player-controls-hidden .glass-panel {
+    padding: 0;
+    border: none;
   }
 
   .player-layout .player-stations-area {
