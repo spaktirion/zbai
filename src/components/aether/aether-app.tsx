@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAetherStore } from '@/store/aether-store';
+import { useAudio } from '@/hooks/use-audio';
+import { createServer, announceServerMqtt, createRemote, startMqttDiscovery } from '@/lib/peer-utils';
 import { PlayerView } from './player-view';
 import { ServerView } from './server-view';
 import { RemoteView } from './remote-view';
@@ -17,15 +19,193 @@ const tabs = [
 ];
 
 export function AetherApp() {
-  const { currentView, navigate, initialize } = useAetherStore();
+  const { currentView, navigate, initialize, remoteConnected } = useAetherStore();
   const [isLandscape, setIsLandscape] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
 
+  // ─── AUDIO (lives here, persists across all tabs) ───
+  const { toggle: audioToggle, changeVolume: audioChangeVolume } = useAudio();
+
+  // ─── SERVER (lives here, persists across all tabs) ───
+  const {
+    serverName,
+    serverRunning,
+    setServerRunning,
+    addToast,
+    _setSendRemoteCommand,
+  } = useAetherStore();
+
+  const serverRef = useRef<ReturnType<typeof createServer> | null>(null);
+  const mqttServerRef = useRef<ReturnType<typeof announceServerMqtt> | null>(null);
+  const broadcastRef = useRef<((status: object) => void) | null>(null);
+
+  const startServer = useCallback(() => {
+    if (!serverName.trim()) {
+      addToast('Please enter a server name', 'error');
+      return;
+    }
+
+    const server = createServer(serverName.trim(), {
+      onStart: () => {
+        setServerRunning(true);
+        addToast(`Server "${serverName.trim()}" is live!`, 'success');
+        if (mqttServerRef.current) mqttServerRef.current.stop();
+        mqttServerRef.current = announceServerMqtt(serverName.trim());
+      },
+      onStop: () => {
+        setServerRunning(false);
+        if (mqttServerRef.current) {
+          mqttServerRef.current.stop();
+          mqttServerRef.current = null;
+        }
+      },
+      onError: (msg) => {
+        addToast(msg, 'error');
+        setServerRunning(false);
+      },
+      onRemoteConnected: () => {
+        addToast('Remote connected!', 'success');
+      },
+      onRemoteDisconnected: () => {
+        addToast('Remote disconnected', 'info');
+      },
+      onCommand: (cmd, _payload) => {
+        const store = useAetherStore.getState();
+        switch (cmd) {
+          case 'PLAY':
+            if (!store.isPlaying) store.togglePlay();
+            break;
+          case 'PAUSE':
+            if (store.isPlaying) store.togglePlay();
+            break;
+          case 'NEXT':
+            store.nextStation();
+            break;
+          case 'PREV':
+            store.prevStation();
+            break;
+          case 'VOLUME':
+            store.setVolume(typeof _payload === 'number' ? _payload : 0.8);
+            break;
+          case 'PLAY_STATION':
+            if (typeof _payload === 'string') {
+              const station = store.stations.find(s => s.url === _payload);
+              if (station) store.playStation(station);
+            }
+            break;
+        }
+      },
+    });
+
+    serverRef.current = server;
+    broadcastRef.current = server.broadcastStatus;
+  }, [serverName, setServerRunning, addToast]);
+
+  const stopServer = useCallback(() => {
+    if (serverRef.current) {
+      serverRef.current.stop();
+      serverRef.current = null;
+      broadcastRef.current = null;
+    }
+  }, []);
+
+  // Broadcast status to remotes periodically
+  useEffect(() => {
+    if (!serverRunning || !broadcastRef.current) return;
+    const interval = setInterval(() => {
+      const store = useAetherStore.getState();
+      broadcastRef.current?.({
+        station: store.currentStation?.name || null,
+        playing: store.isPlaying,
+        volume: store.volume,
+        rds: store.rdsText,
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [serverRunning]);
+
+  // ─── REMOTE (lives here, persists across all tabs) ───
+  const {
+    setRemoteConnected,
+    setRemoteServerName,
+    addServerHistory,
+  } = useAetherStore();
+
+  const [remoteStatus, setRemoteStatus] = useState<{
+    station: string | null;
+    playing: boolean;
+    volume: number;
+    rds: string;
+  } | null>(null);
+
+  const remoteRef = useRef<ReturnType<typeof createRemote> | null>(null);
+
+  const connectRemote = useCallback((name: string) => {
+    if (!name.trim()) {
+      addToast('Please enter a server name', 'error');
+      return;
+    }
+
+    // Disconnect existing if any
+    if (remoteRef.current) {
+      remoteRef.current.disconnect();
+      remoteRef.current = null;
+    }
+
+    const cleanName = name.trim();
+    setRemoteServerName(cleanName);
+
+    const remote = createRemote(cleanName, {
+      onConnected: () => {
+        setRemoteConnected(true);
+        addServerHistory(cleanName);
+        addToast(`Connected to "${cleanName}"`, 'success');
+      },
+      onDisconnected: () => {
+        setRemoteConnected(false);
+        setRemoteStatus(null);
+        setRemoteServerName('');
+        remoteRef.current = null;
+        _setSendRemoteCommand(() => () => {});
+      },
+      onError: (msg) => {
+        addToast(msg, 'error');
+        setRemoteConnected(false);
+        setRemoteServerName('');
+        remoteRef.current = null;
+      },
+      onStatus: (status) => {
+        setRemoteStatus({
+          station: status.station || null,
+          playing: status.playing || false,
+          volume: status.volume ?? 0.8,
+          rds: status.rds || '',
+        });
+      },
+    });
+
+    remoteRef.current = remote;
+
+    // Wire up sendRemoteCommand in the store so player-view can use it
+    _setSendRemoteCommand((command: string, payload?: unknown) => {
+      if (remoteRef.current) {
+        remoteRef.current.sendCommand(command, payload);
+      }
+    });
+  }, [setRemoteConnected, setRemoteServerName, addServerHistory, addToast, _setSendRemoteCommand]);
+
+  const disconnectRemote = useCallback(() => {
+    if (remoteRef.current) {
+      remoteRef.current.disconnect();
+      remoteRef.current = null;
+    }
+  }, []);
+
+  // ─── INIT & ORIENTATION ───
   useEffect(() => {
     initialize();
   }, [initialize]);
 
-  // Track orientation for layout adaptation
   useEffect(() => {
     const check = () => {
       const landscape = window.innerWidth > window.innerHeight;
@@ -35,18 +215,70 @@ export function AetherApp() {
     };
 
     check();
-
     const mql = window.matchMedia('(orientation: landscape)');
     const handler = () => check();
     mql.addEventListener('change', handler);
     window.addEventListener('resize', check);
-
     return () => {
       mql.removeEventListener('change', handler);
       window.removeEventListener('resize', check);
     };
   }, []);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (serverRef.current) serverRef.current.stop();
+      if (mqttServerRef.current) mqttServerRef.current.stop();
+      if (remoteRef.current) remoteRef.current.disconnect();
+    };
+  }, []);
+
+  // ─── SMART PLAYER ACTIONS ───
+  // If remote connected → send command to remote server
+  // If not remote → control local audio
+  const togglePlay = useCallback(() => {
+    if (remoteConnected) {
+      const store = useAetherStore.getState();
+      useAetherStore.getState().sendRemoteCommand(store.isPlaying ? 'PAUSE' : 'PLAY');
+    } else {
+      audioToggle();
+    }
+  }, [remoteConnected, audioToggle]);
+
+  const changeVolume = useCallback((v: number) => {
+    if (remoteConnected) {
+      useAetherStore.getState().sendRemoteCommand('VOLUME', v);
+    } else {
+      audioChangeVolume(v);
+    }
+  }, [remoteConnected, audioChangeVolume]);
+
+  const nextStation = useCallback(() => {
+    if (remoteConnected) {
+      useAetherStore.getState().sendRemoteCommand('NEXT');
+    } else {
+      useAetherStore.getState().nextStation();
+    }
+  }, [remoteConnected]);
+
+  const prevStation = useCallback(() => {
+    if (remoteConnected) {
+      useAetherStore.getState().sendRemoteCommand('PREV');
+    } else {
+      useAetherStore.getState().prevStation();
+    }
+  }, [remoteConnected]);
+
+  const playStation = useCallback((station: { url: string } | null) => {
+    if (remoteConnected && station) {
+      useAetherStore.getState().sendRemoteCommand('PLAY_STATION', station.url);
+    } else if (station) {
+      useAetherStore.getState().playStation(station);
+    }
+  }, [remoteConnected]);
+
+  // ─── RENDER ───
   const viewVariants = {
     enter: (direction: number) => ({
       x: direction > 0 ? 300 : -300,
@@ -90,7 +322,13 @@ export function AetherApp() {
           </div>
         </div>
 
-        {/* Orientation indicator (subtle) */}
+        {remoteConnected && (
+          <div className="px-2 py-1 rounded-md bg-aether-emerald/10 text-aether-emerald text-[10px] font-medium flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-aether-emerald animate-pulse" />
+            REMOTE
+          </div>
+        )}
+
         {isLandscape && (
           <div className="text-[10px] text-aether-muted/40 font-mono hidden sm:block">
             {isCompact ? 'compact' : 'wide'}
@@ -145,9 +383,32 @@ export function AetherApp() {
             style={{ padding: '0 var(--app-padding)' }}
           >
             <div className="h-full" style={{ margin: '0 calc(-1 * var(--app-padding))' }}>
-              {currentView === 'player' && <PlayerView className="h-full" />}
-              {currentView === 'server' && <ServerView className="h-full" />}
-              {currentView === 'remote' && <RemoteView className="h-full" />}
+              {currentView === 'player' && (
+                <PlayerView
+                  className="h-full"
+                  onTogglePlay={togglePlay}
+                  onNext={nextStation}
+                  onPrev={prevStation}
+                  onVolumeChange={changeVolume}
+                  onPlayStation={playStation}
+                />
+              )}
+              {currentView === 'server' && (
+                <ServerView
+                  className="h-full"
+                  serverRunning={serverRunning}
+                  onStartServer={startServer}
+                  onStopServer={stopServer}
+                />
+              )}
+              {currentView === 'remote' && (
+                <RemoteView
+                  className="h-full"
+                  remoteStatus={remoteStatus}
+                  onConnect={connectRemote}
+                  onDisconnect={disconnectRemote}
+                />
+              )}
             </div>
           </motion.div>
         </AnimatePresence>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAetherStore } from '@/store/aether-store';
-import { createRemote, startMqttDiscovery } from '@/lib/peer-utils';
+import { startMqttDiscovery } from '@/lib/peer-utils';
 import { ConnectionStatus } from './connection-status';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,84 +11,36 @@ import { Link2, Unplug, Search, Loader2, Wifi, Clock, Radio, Info } from 'lucide
 
 interface RemoteViewProps {
   className?: string;
-}
-
-export function RemoteView({ className }: RemoteViewProps) {
-  const {
-    remoteConnected,
-    remoteServerName,
-    setRemoteConnected,
-    setRemoteServerName,
-    serverHistory,
-    addServerHistory,
-    addToast,
-  } = useAetherStore();
-
-  const [connectName, setConnectName] = useState('');
-  const [remoteStatus, setRemoteStatus] = useState<{
+  remoteStatus: {
     station: string | null;
     playing: boolean;
     volume: number;
     rds: string;
-  } | null>(null);
+  } | null;
+  onConnect: (name: string) => void;
+  onDisconnect: () => void;
+}
+
+export function RemoteView({ className, remoteStatus, onConnect, onDisconnect }: RemoteViewProps) {
+  const {
+    remoteConnected,
+    remoteServerName,
+    serverHistory,
+    addToast,
+  } = useAetherStore();
+
+  const [connectName, setConnectName] = useState('');
   const [discovering, setDiscovering] = useState(false);
   const [discoveredServers, setDiscoveredServers] = useState<string[]>([]);
-
-  const remoteRef = useRef<ReturnType<typeof createRemote> | null>(null);
   const mqttRef = useRef<ReturnType<typeof startMqttDiscovery> | null>(null);
 
-  const connectToServer = useCallback((name: string) => {
+  const handleConnect = useCallback((name: string) => {
     if (!name.trim()) {
       addToast('Please enter a server name', 'error');
       return;
     }
-
-    const cleanName = name.trim();
-    setRemoteServerName(cleanName);
-
-    const remote = createRemote(cleanName, {
-      onConnected: () => {
-        setRemoteConnected(true);
-        addServerHistory(cleanName);
-        addToast(`Connected to "${cleanName}"`, 'success');
-      },
-      onDisconnected: () => {
-        setRemoteConnected(false);
-        setRemoteStatus(null);
-        setRemoteServerName('');
-        remoteRef.current = null;
-      },
-      onError: (msg) => {
-        addToast(msg, 'error');
-        setRemoteConnected(false);
-        setRemoteServerName('');
-        remoteRef.current = null;
-      },
-      onStatus: (status) => {
-        setRemoteStatus({
-          station: status.station || null,
-          playing: status.playing || false,
-          volume: status.volume ?? 0.8,
-          rds: status.rds || '',
-        });
-      },
-    });
-
-    remoteRef.current = remote;
-  }, [setRemoteConnected, setRemoteServerName, addServerHistory, addToast]);
-
-  const disconnect = useCallback(() => {
-    if (remoteRef.current) {
-      remoteRef.current.disconnect();
-      remoteRef.current = null;
-    }
-  }, []);
-
-  const sendRemoteCommand = useCallback((command: string, payload?: unknown) => {
-    if (remoteRef.current) {
-      remoteRef.current.sendCommand(command, payload);
-    }
-  }, []);
+    onConnect(name.trim());
+  }, [onConnect, addToast]);
 
   // Auto-discover via MQTT
   const startDiscovery = useCallback(() => {
@@ -121,10 +73,9 @@ export function RemoteView({ className }: RemoteViewProps) {
     }
   }, []);
 
-  // Cleanup
+  // Cleanup MQTT on unmount
   useEffect(() => {
     return () => {
-      if (remoteRef.current) remoteRef.current.disconnect();
       if (mqttRef.current) mqttRef.current.stop();
     };
   }, []);
@@ -155,7 +106,7 @@ export function RemoteView({ className }: RemoteViewProps) {
           </div>
           {remoteConnected && (
             <Button
-              onClick={disconnect}
+              onClick={onDisconnect}
               variant="destructive"
               size="sm"
               className="bg-aether-red/10 text-aether-red hover:bg-aether-red/20 border-0 flex-shrink-0"
@@ -166,10 +117,10 @@ export function RemoteView({ className }: RemoteViewProps) {
           )}
         </div>
 
-        {/* Connected Remote Status */}
+        {/* Connected Remote Status (read-only) */}
         {remoteConnected && remoteStatus && (
           <div className="glass-panel-sm p-3 sm:p-4 mb-4">
-            <p className="text-xs text-aether-muted mb-2">Now Playing on Server</p>
+            <p className="text-xs text-aether-muted mb-2">Server Now Playing</p>
             <p className="text-sm font-medium text-aether-text">
               {remoteStatus.station || 'Nothing'}
             </p>
@@ -185,31 +136,10 @@ export function RemoteView({ className }: RemoteViewProps) {
                 Vol: {Math.round(remoteStatus.volume * 100)}%
               </span>
             </div>
-
-            {/* Remote Control Buttons */}
-            <div className="flex gap-2 mt-3">
-              <Button
-                onClick={() => sendRemoteCommand(remoteStatus.playing ? 'PAUSE' : 'PLAY')}
-                size="sm"
-                className="flex-1 bg-aether-indigo/10 text-aether-indigo hover:bg-aether-indigo/20 border-0"
-              >
-                {remoteStatus.playing ? 'Pause' : 'Play'}
-              </Button>
-              <Button
-                onClick={() => sendRemoteCommand('PREV')}
-                size="sm"
-                className="flex-1 bg-white/5 text-aether-muted hover:bg-white/10 border-0"
-              >
-                Prev
-              </Button>
-              <Button
-                onClick={() => sendRemoteCommand('NEXT')}
-                size="sm"
-                className="flex-1 bg-white/5 text-aether-muted hover:bg-white/10 border-0"
-              >
-                Next
-              </Button>
-            </div>
+            <p className="text-xs text-aether-indigo mt-3 flex items-center gap-1.5">
+              <Radio className="w-3 h-3" />
+              Switch to Player tab to control the server
+            </p>
           </div>
         )}
 
@@ -223,11 +153,11 @@ export function RemoteView({ className }: RemoteViewProps) {
                   value={connectName}
                   onChange={(e) => setConnectName(e.target.value)}
                   placeholder="Enter server name..."
-                  onKeyDown={(e) => e.key === 'Enter' && connectToServer(connectName)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleConnect(connectName)}
                   className="flex-1 bg-white/5 border-aether-border text-aether-text placeholder:text-aether-muted/60 focus-visible:border-aether-indigo/50 focus-visible:ring-aether-indigo/30"
                 />
                 <Button
-                  onClick={() => connectToServer(connectName)}
+                  onClick={() => handleConnect(connectName)}
                   disabled={!connectName.trim()}
                   className="bg-aether-indigo hover:bg-aether-indigo/90 text-white flex-shrink-0"
                 >
@@ -276,7 +206,7 @@ export function RemoteView({ className }: RemoteViewProps) {
                       key={name}
                       onClick={() => {
                         setConnectName(name);
-                        connectToServer(name);
+                        handleConnect(name);
                       }}
                       className="glass-panel-sm px-3 sm:px-4 py-2 sm:py-2.5 text-left hover:border-aether-indigo/30 active:bg-white/[0.03] transition-colors"
                     >
@@ -304,7 +234,7 @@ export function RemoteView({ className }: RemoteViewProps) {
                 key={name}
                 onClick={() => {
                   setConnectName(name);
-                  connectToServer(name);
+                  handleConnect(name);
                 }}
                 className="glass-panel-sm px-3 sm:px-4 py-2 sm:py-2.5 text-left hover:border-aether-indigo/30 active:bg-white/[0.03] transition-colors flex items-center gap-2"
               >
@@ -325,8 +255,9 @@ export function RemoteView({ className }: RemoteViewProps) {
           <h3 className="text-fluid-base font-semibold text-aether-text">About Remote</h3>
         </div>
         <p className="text-sm text-aether-muted leading-relaxed">
-          Connect to a running Aether Pro server to control playback remotely. 
-          The remote can play/pause, skip stations, and adjust volume on the host device.
+          Connect to a running Aether Pro server to control it remotely.
+          Once connected, switch to the Player tab — your play/pause, skip, and volume controls will
+          be sent to the server instead of playing locally. Disconnect here to return to local playback.
           Connections use PeerJS for direct peer-to-peer communication.
         </p>
       </div>

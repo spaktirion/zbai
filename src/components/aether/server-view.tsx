@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAetherStore } from '@/store/aether-store';
-import { createServer, announceServerMqtt } from '@/lib/peer-utils';
 import { ConnectionStatus } from './connection-status';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,124 +9,13 @@ import { Play, Square, Wifi, Info, Radio } from 'lucide-react';
 
 interface ServerViewProps {
   className?: string;
+  serverRunning: boolean;
+  onStartServer: () => void;
+  onStopServer: () => void;
 }
 
-export function ServerView({ className }: ServerViewProps) {
-  const {
-    serverName,
-    serverRunning,
-    setServerName,
-    setServerRunning,
-    addToast,
-  } = useAetherStore();
-
-  const [remoteCount, setRemoteCount] = useState(0);
-  const serverRef = useRef<ReturnType<typeof createServer> | null>(null);
-  const mqttRef = useRef<ReturnType<typeof announceServerMqtt> | null>(null);
-  const broadcastRef = useRef<((status: object) => void) | null>(null);
-
-  const startServer = useCallback(() => {
-    if (!serverName.trim()) {
-      addToast('Please enter a server name', 'error');
-      return;
-    }
-
-    const server = createServer(serverName.trim(), {
-      onStart: () => {
-        setServerRunning(true);
-        addToast(`Server "${serverName.trim()}" is live!`, 'success');
-
-        if (mqttRef.current) mqttRef.current.stop();
-        mqttRef.current = announceServerMqtt(serverName.trim());
-      },
-      onStop: () => {
-        setServerRunning(false);
-        setRemoteCount(0);
-        if (mqttRef.current) {
-          mqttRef.current.stop();
-          mqttRef.current = null;
-        }
-      },
-      onError: (msg) => {
-        addToast(msg, 'error');
-        setServerRunning(false);
-      },
-      onRemoteConnected: () => {
-        setRemoteCount(c => c + 1);
-        addToast('Remote connected!', 'success');
-      },
-      onRemoteDisconnected: () => {
-        setRemoteCount(c => Math.max(0, c - 1));
-        addToast('Remote disconnected', 'info');
-      },
-      onCommand: (cmd, _payload) => {
-        const store = useAetherStore.getState();
-        switch (cmd) {
-          case 'PLAY':
-            if (!store.isPlaying) store.togglePlay();
-            break;
-          case 'PAUSE':
-            if (store.isPlaying) store.togglePlay();
-            break;
-          case 'NEXT':
-            store.nextStation();
-            break;
-          case 'PREV':
-            store.prevStation();
-            break;
-          case 'VOLUME':
-            store.setVolume(typeof _payload === 'number' ? _payload : 0.8);
-            break;
-          case 'PLAY_STATION':
-            if (typeof _payload === 'string') {
-              const station = store.stations.find(s => s.url === _payload);
-              if (station) store.playStation(station);
-            }
-            break;
-        }
-      },
-    });
-
-    serverRef.current = server;
-    broadcastRef.current = server.broadcastStatus;
-  }, [serverName, setServerRunning, addToast]);
-
-  const stopServer = useCallback(() => {
-    if (serverRef.current) {
-      serverRef.current.stop();
-      serverRef.current = null;
-      broadcastRef.current = null;
-    }
-  }, []);
-
-  // Broadcast status to remotes periodically
-  useEffect(() => {
-    if (!serverRunning || !broadcastRef.current) return;
-
-    const interval = setInterval(() => {
-      const store = useAetherStore.getState();
-      broadcastRef.current?.({
-        station: store.currentStation?.name || null,
-        playing: store.isPlaying,
-        volume: store.volume,
-        rds: store.rdsText,
-      });
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [serverRunning]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (serverRef.current) {
-        serverRef.current.stop();
-      }
-      if (mqttRef.current) {
-        mqttRef.current.stop();
-      }
-    };
-  }, []);
+export function ServerView({ className, serverRunning, onStartServer, onStopServer }: ServerViewProps) {
+  const { serverName, setServerName } = useAetherStore();
 
   return (
     <div className={cn('flex flex-col h-full overflow-y-auto aether-scroll gap-3', className)} style={{ padding: 'clamp(0.5rem, 1.5vw, 0.75rem)' }}>
@@ -163,7 +50,10 @@ export function ServerView({ className }: ServerViewProps) {
               AETHER-ULTRA-{serverName}
             </p>
             <p className="text-xs text-aether-muted mt-2">
-              {remoteCount} remote{remoteCount !== 1 ? 's' : ''} connected
+              Waiting for remote connections...
+            </p>
+            <p className="text-xs text-aether-muted mt-1">
+              Switch to Player tab to control playback. Remotes will mirror your controls.
             </p>
           </div>
         )}
@@ -183,7 +73,7 @@ export function ServerView({ className }: ServerViewProps) {
         {/* Start/Stop Button */}
         {!serverRunning ? (
           <Button
-            onClick={startServer}
+            onClick={onStartServer}
             disabled={!serverName.trim()}
             className="w-full h-12 bg-aether-emerald hover:bg-aether-emerald/90 text-white text-sm font-medium rounded-xl"
           >
@@ -192,7 +82,7 @@ export function ServerView({ className }: ServerViewProps) {
           </Button>
         ) : (
           <Button
-            onClick={stopServer}
+            onClick={onStopServer}
             className="w-full h-12 bg-aether-red/10 text-aether-red hover:bg-aether-red/20 border-0 text-sm font-medium rounded-xl"
           >
             <Square className="w-4 h-4 mr-2" />
@@ -211,7 +101,8 @@ export function ServerView({ className }: ServerViewProps) {
           {[
             'Enter a unique server name and click Start Server',
             'Share your server name with friends or use auto-discover',
-            'Connected remotes can control playback (play, pause, next, prev, volume)',
+            'Use the Player tab to control playback locally',
+            'Connected remotes receive all your playback commands',
             'Uses PeerJS for direct P2P connections — no central server needed',
           ].map((text, i) => (
             <div key={i} className="flex gap-3">
@@ -226,7 +117,7 @@ export function ServerView({ className }: ServerViewProps) {
 
       {/* Supported Commands */}
       <div className="glass-panel">
-        <h3 className="text-fluid-base font-semibold text-aether-text mb-3">Remote Commands</h3>
+        <h3 className="text-fluid-base font-semibold text-aether-text mb-3">Remote Receives</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {[
             { cmd: 'PLAY', desc: 'Start playback' },

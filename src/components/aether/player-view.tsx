@@ -2,7 +2,6 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { useAetherStore } from '@/store/aether-store';
-import { useAudio } from '@/hooks/use-audio';
 import { AudioPlayer } from './audio-player';
 import { MiniPlayer } from './mini-player';
 import { RdsTicker } from './rds-ticker';
@@ -11,12 +10,25 @@ import { StationList } from './station-list';
 import { StationModal } from './station-modal';
 import { cn } from '@/lib/utils';
 import { Plus, Upload } from 'lucide-react';
+import type { Station } from '@/types/station';
 
 interface PlayerViewProps {
   className?: string;
+  onTogglePlay: () => void;
+  onNext: () => void;
+  onPrev: () => void;
+  onVolumeChange: (v: number) => void;
+  onPlayStation: (station: Station | null) => void;
 }
 
-export function PlayerView({ className }: PlayerViewProps) {
+export function PlayerView({
+  className,
+  onTogglePlay,
+  onNext,
+  onPrev,
+  onVolumeChange,
+  onPlayStation,
+}: PlayerViewProps) {
   const {
     isPlaying,
     rdsText,
@@ -24,11 +36,8 @@ export function PlayerView({ className }: PlayerViewProps) {
     miniPlayer,
     setMiniPlayer,
     setShowStationModal,
-    nextStation,
-    prevStation,
   } = useAetherStore();
 
-  const { toggle, changeVolume } = useAudio();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Handle scroll to trigger mini player
@@ -65,10 +74,10 @@ export function PlayerView({ className }: PlayerViewProps) {
           <div className="player-controls-area flex-shrink-0">
             <div className="glass-panel">
               <AudioPlayer
-                onTogglePlay={toggle}
-                onNext={nextStation}
-                onPrev={prevStation}
-                onVolumeChange={changeVolume}
+                onTogglePlay={onTogglePlay}
+                onNext={onNext}
+                onPrev={onPrev}
+                onVolumeChange={onVolumeChange}
               />
             </div>
           </div>
@@ -118,9 +127,9 @@ export function PlayerView({ className }: PlayerViewProps) {
             if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
             setMiniPlayer(false);
           }}
-          onTogglePlay={toggle}
-          onNext={nextStation}
-          onPrev={prevStation}
+          onTogglePlay={onTogglePlay}
+          onNext={onNext}
+          onPrev={onPrev}
         />
       )}
     </div>
