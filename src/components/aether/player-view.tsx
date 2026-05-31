@@ -90,7 +90,7 @@ export function PlayerView({
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="player-stations-area flex flex-col gap-3 min-w-0 pb-20"
+            className="player-stations-area flex flex-col gap-3 min-w-0 pb-32"
           >
             {/* Action Buttons */}
             <div className="action-buttons">
