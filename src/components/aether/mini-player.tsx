@@ -36,8 +36,8 @@ export function MiniPlayer({ onExpand, onTogglePlay, onNext, onPrev, className }
     <div
       className={cn(
         'fixed bottom-0 left-0 right-0 z-40',
-        'lg:left-1/2 lg:-translate-x-1/2',
-        'glass-panel rounded-none lg:rounded-t-2xl',
+        'md:left-1/2 md:-translate-x-1/2',
+        'glass-panel rounded-none md:rounded-t-2xl',
         'px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3',
         className
       )}

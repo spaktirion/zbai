@@ -44,11 +44,11 @@ export function PlayerView({
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Handle scroll to trigger mini player
+  // Handle scroll to trigger mini player (only relevant in portrait)
   const handleScroll = useCallback(() => {
     if (!scrollRef.current) return;
     const { scrollTop } = scrollRef.current;
-    setMiniPlayer(scrollTop > 100);
+    setMiniPlayer(scrollTop > 80);
   }, [setMiniPlayer]);
 
   // Reset mini player when station changes
@@ -68,16 +68,12 @@ export function PlayerView({
         />
       </div>
 
-      {/* Main Content - scrollable */}
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto aether-scroll pb-4"
-        style={{ padding: '0 clamp(0.25rem, 1vw, 0.5rem)' }}
-      >
-        <div className="player-layout min-h-full">
-          {/* Player Controls Area */}
-          <div className="player-controls-area flex-shrink-0">
+      {/* Main Content */}
+      <div className="flex-1 min-h-0 overflow-hidden" style={{ padding: '0 clamp(0.25rem, 1vw, 0.5rem)' }}>
+        <div className="player-layout h-full">
+
+          {/* ── Player Controls ── */}
+          <div className="player-controls-area">
             <div className="glass-panel">
               <AudioPlayer
                 onTogglePlay={onTogglePlay}
@@ -88,8 +84,12 @@ export function PlayerView({
             </div>
           </div>
 
-          {/* Stations Area */}
-          <div className="player-stations-area flex-1 flex flex-col gap-3 min-w-0 pb-20">
+          {/* ── Stations (independently scrollable on desktop, part of main scroll on phone) ── */}
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="player-stations-area flex flex-col gap-3 min-w-0 pb-20"
+          >
             {/* Action Buttons */}
             <div className="action-buttons">
               <button
@@ -126,7 +126,7 @@ export function PlayerView({
       {/* Station Modal (Add/Edit/Delete/Import) */}
       <StationModal />
 
-      {/* Mini Player (sticky at bottom when scrolled) */}
+      {/* Mini Player — shows in portrait when scrolled past player controls */}
       {miniPlayer && (remoteConnected ? !!remoteStationDisplay : !!currentStation) && (
         <MiniPlayer
           onExpand={() => {

@@ -174,25 +174,18 @@
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 0 40px rgba(99, 102, 241, 0.08);
-    height: 100dvh;
   }
 }
 
-/* Desktop: larger centered container */
+/* Desktop: fill screen height, wider container */
 @media (min-width: 1280px) {
   .aether-container {
-    max-width: 1100px;
-    margin: auto;
-    border-radius: 24px;
-    box-shadow: 0 0 60px rgba(99, 102, 241, 0.1);
-    height: min(100dvh, 860px);
-  }
-}
-
-/* Wide desktop: max width */
-@media (min-width: 1536px) {
-  .aether-container {
-    max-width: 1400px;
+    max-width: 100vw;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    height: 100dvh;
   }
 }
 
@@ -370,6 +363,12 @@ input[type="range"]::-moz-range-thumb {
   flex: 1;
   min-height: 44px;
 }
+@media (min-width: 768px) {
+  .tab-bar {
+    max-width: 280px;
+    margin: 0 auto;
+  }
+}
 @media (min-width: 1280px) {
   .tab-bar {
     max-width: 360px;
@@ -395,29 +394,18 @@ input[type="range"]::-moz-range-thumb {
   overflow: hidden;
 }
 
-/* Landscape small screens: side-by-side */
-@media (orientation: landscape) and (max-height: 500px) {
-  .player-layout {
-    flex-direction: row;
-    overflow: hidden;
-    gap: var(--app-gap);
-  }
-
+/* Phone portrait: player controls sticky at top inside the scroll */
+@media (max-width: 767px) {
   .player-layout .player-controls-area {
-    flex: 0 0 50%;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .player-layout .player-stations-area {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
   }
 }
 
-/* Landscape tablet+: more space for stations */
-@media (orientation: landscape) and (min-width: 768px) and (min-height: 500px) {
+/* Tablet+ & desktop: side-by-side — player left, stations right */
+@media (min-width: 768px) {
   .player-layout {
     flex-direction: row;
     overflow: hidden;
@@ -425,16 +413,51 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .player-layout .player-controls-area {
-    flex: 0 0 45%;
-    min-width: 280px;
-    max-width: 380px;
+    flex: 0 0 auto;
+    width: 340px;
+    min-width: 300px;
     overflow: hidden;
+    /* Player panel stays in place while stations scroll */
+    position: relative;
+    align-self: stretch;
+  }
+
+  .player-layout .player-controls-area .glass-panel {
+    position: sticky;
+    top: 0;
   }
 
   .player-layout .player-stations-area {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+}
+
+/* Wide desktop: wider player panel */
+@media (min-width: 1280px) {
+  .player-layout .player-controls-area {
+    width: 380px;
+  }
+}
+
+/* Landscape small screens: side-by-side compact */
+@media (orientation: landscape) and (max-height: 500px) {
+  .player-layout .player-controls-area {
+    flex: 0 0 50%;
+    width: auto;
+    min-width: 0;
+    position: relative;
+  }
+
+  .player-layout .player-controls-area .glass-panel {
+    position: static;
+  }
+
+  .player-layout .player-stations-area {
+    flex: 1;
+    overflow-y: auto;
   }
 }
 
