@@ -9,7 +9,7 @@ import { ServerView } from './server-view';
 import { RemoteView } from './remote-view';
 import { ToastContainer } from './toast-container';
 import { cn } from '@/lib/utils';
-import { Radio, Server, Gamepad2 } from 'lucide-react';
+import { Radio, Server, Gamepad2, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const tabs = [
@@ -19,9 +19,10 @@ const tabs = [
 ];
 
 export function AetherApp() {
-  const { currentView, navigate, initialize, remoteConnected } = useAetherStore();
+  const { currentView, navigate, initialize, remoteConnected, resetAllData } = useAetherStore();
   const [isLandscape, setIsLandscape] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // ─── AUDIO (lives here, persists across all tabs) ───
   const { toggle: audioToggle, changeVolume: audioChangeVolume } = useAudio();
@@ -371,6 +372,48 @@ export function AetherApp() {
           <div className="px-2 py-1 rounded-md bg-aether-emerald/10 text-aether-emerald text-[10px] font-medium flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-aether-emerald animate-pulse" />
             REMOTE
+          </div>
+        )}
+
+        {/* Reset button */}
+        <button
+          onClick={() => setShowResetConfirm(true)}
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-aether-muted hover:text-aether-red hover:bg-aether-red/10 active:bg-aether-red/20 transition-colors"
+          aria-label="Reset all data"
+          title="Reset all data"
+        >
+          <RotateCcw className="w-4 h-4" />
+        </button>
+
+        {/* Reset confirmation */}
+        {showResetConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowResetConfirm(false)}>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div
+              className="relative glass-panel max-w-xs w-full text-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <p className="text-sm font-medium text-aether-text mb-1">Reset everything?</p>
+              <p className="text-xs text-aether-muted mb-4">All stations, server name, and history will be deleted. This cannot be undone.</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="flex-1 h-9 rounded-lg bg-white/5 text-aether-muted hover:bg-white/10 hover:text-aether-text text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    resetAllData();
+                    setShowResetConfirm(false);
+                    addToast('All data cleared', 'success');
+                  }}
+                  className="flex-1 h-9 rounded-lg bg-aether-red/20 text-aether-red hover:bg-aether-red/30 active:bg-aether-red/40 text-sm font-medium transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

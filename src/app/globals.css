@@ -394,13 +394,24 @@ input[type="range"]::-moz-range-thumb {
   overflow: hidden;
 }
 
-/* Phone portrait: player controls sticky at top inside the scroll */
+/* Phone portrait: player-layout IS the scroll container.
+   Player controls stick to top, stations scroll underneath. */
 @media (max-width: 767px) {
+  .player-layout {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .player-layout .player-controls-area {
     position: sticky;
     top: 0;
     z-index: 10;
     flex-shrink: 0;
+  }
+
+  .player-layout .player-stations-area {
+    overflow: visible;
   }
 }
 

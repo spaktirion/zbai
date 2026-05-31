@@ -43,11 +43,13 @@ export function PlayerView({
   } = useAetherStore();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
 
-  // Handle scroll to trigger mini player (only relevant in portrait)
+  // Handle scroll to trigger mini player (portrait: player-layout scrolls; desktop: stations-area scrolls)
   const handleScroll = useCallback(() => {
-    if (!scrollRef.current) return;
-    const { scrollTop } = scrollRef.current;
+    const el = layoutRef.current || scrollRef.current;
+    if (!el) return;
+    const { scrollTop } = el;
     setMiniPlayer(scrollTop > 80);
   }, [setMiniPlayer]);
 
@@ -70,7 +72,7 @@ export function PlayerView({
 
       {/* Main Content */}
       <div className="flex-1 min-h-0 overflow-hidden" style={{ padding: '0 clamp(0.25rem, 1vw, 0.5rem)' }}>
-        <div className="player-layout h-full">
+        <div ref={layoutRef} onScroll={handleScroll} className="player-layout h-full">
 
           {/* ── Player Controls ── */}
           <div className="player-controls-area">
@@ -130,7 +132,8 @@ export function PlayerView({
       {miniPlayer && (remoteConnected ? !!remoteStationDisplay : !!currentStation) && (
         <MiniPlayer
           onExpand={() => {
-            if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+            const target = layoutRef.current || scrollRef.current;
+            if (target) target.scrollTo({ top: 0, behavior: 'smooth' });
             setMiniPlayer(false);
           }}
           onTogglePlay={onTogglePlay}

@@ -134,6 +134,7 @@ interface AetherState {
   _setSendRemoteCommand: (fn: (command: string, payload?: unknown) => void) => void;
   updateRemoteStatus: (status: { station: string | null; playing: boolean; volume: number; rds: string }) => void;
   clearRemoteStatus: () => void;
+  resetAllData: () => void;
 }
 
 export const useAetherStore = create<AetherState>((set, get) => ({
@@ -327,5 +328,49 @@ export const useAetherStore = create<AetherState>((set, get) => ({
     set(state => ({
       toasts: state.toasts.filter(t => t.id !== id),
     }));
+  },
+
+  resetAllData: () => {
+    if (typeof window === 'undefined') return;
+    // Clear all app localStorage keys
+    localStorage.removeItem(SAVED_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+    localStorage.removeItem(SERVER_NAME_KEY);
+    localStorage.removeItem(HISTORY_KEY);
+    // Clear any other aether keys that might exist
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('aether_')) localStorage.removeItem(key);
+    });
+    // Clear service worker caches
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => caches.delete(name));
+      });
+    }
+    // Reset all state to defaults
+    set({
+      stations: [],
+      currentStation: null,
+      currentStationIndex: -1,
+      isPlaying: false,
+      volume: 0.8,
+      rdsText: '',
+      searchResults: [],
+      searchLoading: false,
+      currentView: 'player',
+      serverName: '',
+      serverRunning: false,
+      remoteConnected: false,
+      remoteServerName: '',
+      serverHistory: [],
+      remoteStationDisplay: '',
+      remotePlaying: false,
+      remoteRds: '',
+      remoteVolume: 0.8,
+      showStationModal: false,
+      editingStation: null,
+      miniPlayer: false,
+      toasts: [],
+    });
   },
 }));
