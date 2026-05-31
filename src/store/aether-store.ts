@@ -93,6 +93,7 @@ interface AetherState {
   remoteConnected: boolean;
   remoteServerName: string;
   serverHistory: string[];
+  sendRemoteCommand: (command: string, payload?: unknown) => void;
 
   // UI
   showStationModal: boolean;
@@ -125,6 +126,7 @@ interface AetherState {
   setMiniPlayer: (mini: boolean) => void;
   addToast: (message: string, type?: 'info' | 'success' | 'error') => void;
   removeToast: (id: string) => void;
+  _setSendRemoteCommand: (fn: (command: string, payload?: unknown) => void) => void;
 }
 
 export const useAetherStore = create<AetherState>((set, get) => ({
@@ -268,6 +270,12 @@ export const useAetherStore = create<AetherState>((set, get) => ({
   setRemoteConnected: (connected) => set({ remoteConnected: connected }),
 
   setRemoteServerName: (name) => set({ remoteServerName: name }),
+
+  sendRemoteCommand: (_command, _payload) => {
+    // no-op by default; overwritten by aether-app when remote is active
+  },
+
+  _setSendRemoteCommand: (fn) => set({ sendRemoteCommand: fn }),
 
   addServerHistory: (name) => {
     const { serverHistory } = get();
