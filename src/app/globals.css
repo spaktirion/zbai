@@ -181,7 +181,7 @@
 /* Desktop: larger centered container */
 @media (min-width: 1280px) {
   .aether-container {
-    max-width: 960px;
+    max-width: 1100px;
     margin: auto;
     border-radius: 24px;
     box-shadow: 0 0 60px rgba(99, 102, 241, 0.1);
@@ -192,7 +192,7 @@
 /* Wide desktop: max width */
 @media (min-width: 1536px) {
   .aether-container {
-    max-width: 1200px;
+    max-width: 1400px;
   }
 }
 
@@ -378,40 +378,13 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ===== STATION GRID ===== */
+/* auto-fill + minmax: columns adapt automatically to available space.
+   No media queries needed — works inside any container width.
+   260px min → 1 col on phone, 2 on tablet, 3 on wide desktop */
 .station-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--section-gap);
-}
-
-/* Landscape phone */
-@media (orientation: landscape) and (min-width: 480px) {
-  .station-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* Tablet+ portrait */
-@media (min-width: 768px) and (orientation: portrait) {
-  .station-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* Desktop: still 2 columns (container is only 960px) */
-@media (min-width: 1280px) {
-  .station-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-  }
-}
-
-/* Ultra-wide: 3 columns when container is wide enough */
-@media (min-width: 1536px) {
-  .station-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
-  }
 }
 
 /* ===== PLAYER LAYOUT ===== */
