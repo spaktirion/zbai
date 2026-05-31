@@ -26,7 +26,7 @@ export function StationRow({
   return (
     <div
       className={cn(
-        'glass-panel-sm flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 transition-all duration-200 group',
+        'glass-panel-sm flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 transition-all duration-200 group overflow-hidden',
         isActive && 'border-aether-indigo/40 shadow-[0_0_12px_rgba(99,102,241,0.15)]',
         !isActive && 'hover:border-aether-border/60 hover:bg-white/[0.02] active:bg-white/[0.04]',
         className

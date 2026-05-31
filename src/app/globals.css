@@ -192,7 +192,7 @@
 /* Wide desktop: max width */
 @media (min-width: 1536px) {
   .aether-container {
-    max-width: 1080px;
+    max-width: 1200px;
   }
 }
 
@@ -387,21 +387,29 @@ input[type="range"]::-moz-range-thumb {
 /* Landscape phone */
 @media (orientation: landscape) and (min-width: 480px) {
   .station-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 /* Tablet+ portrait */
 @media (min-width: 768px) and (orientation: portrait) {
   .station-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* Desktop */
+/* Desktop: still 2 columns (container is only 960px) */
 @media (min-width: 1280px) {
   .station-grid {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+/* Ultra-wide: 3 columns when container is wide enough */
+@media (min-width: 1536px) {
+  .station-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.75rem;
   }
 }
