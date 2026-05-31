@@ -36,6 +36,10 @@ export function PlayerView({
     miniPlayer,
     setMiniPlayer,
     setShowStationModal,
+    remoteConnected,
+    remotePlaying,
+    remoteRds,
+    remoteStationDisplay,
   } = useAetherStore();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -57,8 +61,10 @@ export function PlayerView({
       {/* RDS Ticker */}
       <div className="ticker-wrap px-1 pt-1">
         <RdsTicker
-          text={rdsText || currentStation?.name || ''}
-          isActive={isPlaying}
+          text={remoteConnected
+            ? (remoteRds || remoteStationDisplay)
+            : (rdsText || currentStation?.name || '')}
+          isActive={remoteConnected ? remotePlaying : isPlaying}
         />
       </div>
 
@@ -121,7 +127,7 @@ export function PlayerView({
       <StationModal />
 
       {/* Mini Player (sticky at bottom when scrolled) */}
-      {miniPlayer && currentStation && (
+      {miniPlayer && (remoteConnected ? !!remoteStationDisplay : !!currentStation) && (
         <MiniPlayer
           onExpand={() => {
             if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });

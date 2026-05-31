@@ -21,16 +21,36 @@ export function AudioPlayer({
   onVolumeChange,
   className,
 }: AudioPlayerProps) {
-  const { currentStation, isPlaying, volume, rdsText } = useAetherStore();
+  const {
+    currentStation,
+    isPlaying,
+    volume,
+    rdsText,
+    remoteConnected,
+    remoteStationDisplay,
+    remotePlaying,
+    remoteRds,
+    remoteVolume,
+    remoteServerName,
+  } = useAetherStore();
 
-  if (!currentStation) {
+  // When remote connected, show server state; otherwise local state
+  const displayStationName = remoteConnected ? remoteStationDisplay : (currentStation?.name || '');
+  const displayPlaying = remoteConnected ? remotePlaying : isPlaying;
+  const displayRds = remoteConnected ? remoteRds : rdsText;
+  const displayVolume = remoteConnected ? remoteVolume : volume;
+  const hasStation = remoteConnected ? !!remoteStationDisplay : !!currentStation;
+
+  if (!hasStation) {
     return (
       <div className={cn('flex flex-col items-center justify-center py-6 sm:py-8 text-center', className)}>
         <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/5 flex items-center justify-center mb-3 sm:mb-4">
           <Radio className="w-6 h-6 sm:w-7 sm:h-7 text-aether-muted" />
         </div>
         <p className="text-fluid-lg font-medium text-aether-muted">No Station Selected</p>
-        <p className="text-fluid-sm text-aether-muted/60 mt-1">Pick a station to start listening</p>
+        <p className="text-fluid-sm text-aether-muted/60 mt-1">
+          {remoteConnected ? 'Waiting for server status...' : 'Pick a station to start listening'}
+        </p>
       </div>
     );
   }
@@ -39,16 +59,18 @@ export function AudioPlayer({
     <div className={cn('flex flex-col items-center gap-3 sm:gap-4 py-2 sm:py-4', className)}>
       {/* Equalizer */}
       <div className="eq-visual">
-        <Equalizer isPlaying={isPlaying} className="scale-125 sm:scale-150 mb-1 sm:mb-2" />
+        <Equalizer isPlaying={displayPlaying} className="scale-125 sm:scale-150 mb-1 sm:mb-2" />
       </div>
 
       {/* Station Name */}
       <div className="text-center w-full px-2">
         <h2 className="text-fluid-xl font-semibold text-aether-text truncate">
-          {rdsText || currentStation.name}
+          {displayRds || displayStationName}
         </h2>
         <p className="text-fluid-sm text-aether-muted mt-0.5 font-mono truncate">
-          {currentStation.url.replace(/^https?:\/\//, '').split('/')[0]}
+          {remoteConnected
+            ? `Remote: ${remoteServerName}`
+            : currentStation?.url.replace(/^https?:\/\//, '').split('/')[0]}
         </p>
       </div>
 
@@ -66,11 +88,11 @@ export function AudioPlayer({
           className={cn(
             'player-btn-main w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full transition-all',
             'bg-aether-indigo text-white shadow-lg active:scale-95',
-            isPlaying && 'pulse-glow'
+            displayPlaying && 'pulse-glow'
           )}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
+          aria-label={displayPlaying ? 'Pause' : 'Play'}
         >
-          {isPlaying ? (
+          {displayPlaying ? (
             <Pause className="w-6 h-6 sm:w-7 sm:h-7" />
           ) : (
             <Play className="w-6 h-6 sm:w-7 sm:h-7 ml-0.5" />
@@ -87,7 +109,7 @@ export function AudioPlayer({
 
       {/* Volume */}
       <VolumeControl
-        volume={volume}
+        volume={displayVolume}
         onChange={onVolumeChange}
         className="w-full max-w-[260px] sm:max-w-[300px]"
       />

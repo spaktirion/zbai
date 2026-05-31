@@ -14,9 +14,23 @@ interface MiniPlayerProps {
 }
 
 export function MiniPlayer({ onExpand, onTogglePlay, onNext, onPrev, className }: MiniPlayerProps) {
-  const { currentStation, isPlaying, rdsText } = useAetherStore();
+  const {
+    currentStation,
+    isPlaying,
+    rdsText,
+    remoteConnected,
+    remoteStationDisplay,
+    remotePlaying,
+    remoteRds,
+    remoteServerName,
+  } = useAetherStore();
 
-  if (!currentStation) return null;
+  const displayStationName = remoteConnected ? remoteStationDisplay : (currentStation?.name || '');
+  const displayPlaying = remoteConnected ? remotePlaying : isPlaying;
+  const displayRds = remoteConnected ? remoteRds : rdsText;
+  const hasStation = remoteConnected ? !!remoteStationDisplay : !!currentStation;
+
+  if (!hasStation) return null;
 
   return (
     <div
@@ -43,13 +57,15 @@ export function MiniPlayer({ onExpand, onTogglePlay, onNext, onPrev, className }
 
       {/* EQ + Station Info */}
       <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-        <Equalizer isPlaying={isPlaying} className="flex-shrink-0 scale-90" />
+        <Equalizer isPlaying={displayPlaying} className="flex-shrink-0 scale-90" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-aether-text truncate">
-            {rdsText || currentStation.name}
+            {displayRds || displayStationName}
           </p>
           <p className="text-[10px] sm:text-xs text-aether-muted font-mono truncate">
-            {currentStation.url.replace(/^https?:\/\//, '').split('/')[0]}
+            {remoteConnected
+              ? `Remote: ${remoteServerName}`
+              : currentStation?.url.replace(/^https?:\/\//, '').split('/')[0]}
           </p>
         </div>
       </div>
@@ -68,11 +84,11 @@ export function MiniPlayer({ onExpand, onTogglePlay, onNext, onPrev, className }
           className={cn(
             'w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full transition-all active:scale-95',
             'bg-aether-indigo text-white',
-            isPlaying && 'pulse-glow'
+            displayPlaying && 'pulse-glow'
           )}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
+          aria-label={displayPlaying ? 'Pause' : 'Play'}
         >
-          {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+          {displayPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
         </button>
         <button
           onClick={onNext}

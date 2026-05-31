@@ -160,6 +160,10 @@ export function AetherApp() {
         setRemoteConnected(true);
         addServerHistory(cleanName);
         addToast(`Connected to "${cleanName}"`, 'success');
+        // Pause local audio when connecting as remote
+        if (useAetherStore.getState().isPlaying) {
+          useAetherStore.setState({ isPlaying: false });
+        }
       },
       onDisconnected: () => {
         setRemoteConnected(false);
@@ -167,15 +171,24 @@ export function AetherApp() {
         setRemoteServerName('');
         remoteRef.current = null;
         _setSendRemoteCommand(() => () => {});
+        useAetherStore.getState().clearRemoteStatus();
       },
       onError: (msg) => {
         addToast(msg, 'error');
         setRemoteConnected(false);
         setRemoteServerName('');
         remoteRef.current = null;
+        useAetherStore.getState().clearRemoteStatus();
       },
       onStatus: (status) => {
         setRemoteStatus({
+          station: status.station || null,
+          playing: status.playing || false,
+          volume: status.volume ?? 0.8,
+          rds: status.rds || '',
+        });
+        // Sync to store so player UI updates
+        useAetherStore.getState().updateRemoteStatus({
           station: status.station || null,
           playing: status.playing || false,
           volume: status.volume ?? 0.8,
@@ -239,8 +252,9 @@ export function AetherApp() {
   // If not remote → control local audio
   const togglePlay = useCallback(() => {
     if (remoteConnected) {
+      // Use server's playing state, not local
       const store = useAetherStore.getState();
-      useAetherStore.getState().sendRemoteCommand(store.isPlaying ? 'PAUSE' : 'PLAY');
+      useAetherStore.getState().sendRemoteCommand(store.remotePlaying ? 'PAUSE' : 'PLAY');
     } else {
       audioToggle();
     }
@@ -249,6 +263,14 @@ export function AetherApp() {
   const changeVolume = useCallback((v: number) => {
     if (remoteConnected) {
       useAetherStore.getState().sendRemoteCommand('VOLUME', v);
+      // Update local display immediately
+      useAetherStore.getState().updateRemoteStatus({
+        ...useAetherStore.getState(),
+        volume: v,
+        station: useAetherStore.getState().remoteStationDisplay || null,
+        playing: useAetherStore.getState().remotePlaying,
+        rds: useAetherStore.getState().remoteRds,
+      });
     } else {
       audioChangeVolume(v);
     }
