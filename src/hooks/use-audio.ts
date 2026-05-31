@@ -6,12 +6,12 @@ import { useAetherStore } from '@/store/aether-store';
 export function useAudio() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rdsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const silenceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const {
     currentStation,
     isPlaying,
     volume,
+    remoteConnected,
     playStation: storePlayStation,
     togglePlay: storeTogglePlay,
     setRdsText,
@@ -35,10 +35,16 @@ export function useAudio() {
     };
   }, []);
 
-  // Sync play/pause state
+  // Sync play/pause state — ONLY when NOT connected as remote
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentStation) return;
+
+    // Don't play local audio when acting as remote
+    if (remoteConnected) {
+      audio.pause();
+      return;
+    }
 
     if (isPlaying) {
       if (audio.src !== currentStation.url) {
@@ -49,14 +55,21 @@ export function useAudio() {
     } else {
       audio.pause();
     }
-  }, [isPlaying, currentStation]);
+  }, [isPlaying, currentStation, remoteConnected]);
+
+  // Pause local audio immediately when remote connects
+  useEffect(() => {
+    if (remoteConnected && audioRef.current) {
+      audioRef.current.pause();
+    }
+  }, [remoteConnected]);
 
   // Sync volume
   useEffect(() => {
-    if (audioRef.current) {
+    if (audioRef.current && !remoteConnected) {
       audioRef.current.volume = volume;
     }
-  }, [volume]);
+  }, [volume, remoteConnected]);
 
   // Handle audio events
   useEffect(() => {
@@ -70,7 +83,7 @@ export function useAudio() {
     };
 
     const handlePause = () => {
-      if (useAetherStore.getState().isPlaying) {
+      if (useAetherStore.getState().isPlaying && !useAetherStore.getState().remoteConnected) {
         useAetherStore.setState({ isPlaying: false });
       }
     };
@@ -96,15 +109,15 @@ export function useAudio() {
     };
   }, []);
 
-  // RDS Polling
+  // RDS Polling — ONLY when playing locally (not remote)
   useEffect(() => {
     if (rdsIntervalRef.current) {
       clearInterval(rdsIntervalRef.current);
       rdsIntervalRef.current = null;
     }
 
-    if (isPlaying && currentStation) {
-      // Do initial fetch
+    // Don't poll RDS when connected as remote (server sends it)
+    if (isPlaying && currentStation && !remoteConnected) {
       const fetchRds = async () => {
         try {
           const { fetchRdsInfo } = await import('@/lib/audio-utils');
@@ -120,13 +133,12 @@ export function useAudio() {
     return () => {
       if (rdsIntervalRef.current) clearInterval(rdsIntervalRef.current);
     };
-  }, [isPlaying, currentStation, setRdsText]);
+  }, [isPlaying, currentStation, setRdsText, remoteConnected]);
 
   // Keep audio alive when tab is hidden
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.hidden && isPlaying && audioRef.current) {
-        // Play tiny silence to keep audio alive
+      if (document.hidden && isPlaying && audioRef.current && !remoteConnected) {
         const silenceCtx = new AudioContext();
         const oscillator = silenceCtx.createOscillator();
         const gain = silenceCtx.createGain();
@@ -143,7 +155,7 @@ export function useAudio() {
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [isPlaying]);
+  }, [isPlaying, remoteConnected]);
 
   // Media Session API
   useEffect(() => {
