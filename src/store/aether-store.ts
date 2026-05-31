@@ -94,6 +94,11 @@ interface AetherState {
   remoteServerName: string;
   serverHistory: string[];
   sendRemoteCommand: (command: string, payload?: unknown) => void;
+  // Remote display (synced from server status)
+  remoteStationDisplay: string;
+  remotePlaying: boolean;
+  remoteRds: string;
+  remoteVolume: number;
 
   // UI
   showStationModal: boolean;
@@ -127,6 +132,8 @@ interface AetherState {
   addToast: (message: string, type?: 'info' | 'success' | 'error') => void;
   removeToast: (id: string) => void;
   _setSendRemoteCommand: (fn: (command: string, payload?: unknown) => void) => void;
+  updateRemoteStatus: (status: { station: string | null; playing: boolean; volume: number; rds: string }) => void;
+  clearRemoteStatus: () => void;
 }
 
 export const useAetherStore = create<AetherState>((set, get) => ({
@@ -145,6 +152,10 @@ export const useAetherStore = create<AetherState>((set, get) => ({
   remoteConnected: false,
   remoteServerName: '',
   serverHistory: [],
+  remoteStationDisplay: '',
+  remotePlaying: false,
+  remoteRds: '',
+  remoteVolume: 0.8,
   showStationModal: false,
   editingStation: null,
   miniPlayer: false,
@@ -276,6 +287,20 @@ export const useAetherStore = create<AetherState>((set, get) => ({
   },
 
   _setSendRemoteCommand: (fn) => set({ sendRemoteCommand: fn }),
+
+  updateRemoteStatus: (status) => set({
+    remoteStationDisplay: status.station || '',
+    remotePlaying: status.playing,
+    remoteRds: status.rds,
+    remoteVolume: status.volume,
+  }),
+
+  clearRemoteStatus: () => set({
+    remoteStationDisplay: '',
+    remotePlaying: false,
+    remoteRds: '',
+    remoteVolume: 0.8,
+  }),
 
   addServerHistory: (name) => {
     const { serverHistory } = get();
