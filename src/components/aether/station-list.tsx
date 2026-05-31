@@ -19,6 +19,9 @@ export function StationList({ className }: StationListProps) {
     setEditingStation,
     deleteStation,
     togglePlay,
+    remoteConnected,
+    remotePlaying,
+    sendRemoteCommand,
   } = useAetherStore();
 
   const handleEdit = (station: typeof stations[number]) => {
@@ -31,10 +34,24 @@ export function StationList({ className }: StationListProps) {
   };
 
   const handleStationClick = (station: typeof stations[number]) => {
-    if (currentStation?.id === station.id) {
-      togglePlay();
+    if (remoteConnected) {
+      // Remote mode: send commands to server
+      if (currentStation?.id === station.id) {
+        // Toggle play on server
+        const state = useAetherStore.getState();
+        sendRemoteCommand(state.remotePlaying ? 'PAUSE' : 'PLAY');
+      } else {
+        // Tell server to play this station (send name+url so server can play even if not in its list)
+        playStation(station);
+        sendRemoteCommand('PLAY_STATION', { name: station.name, url: station.url });
+      }
     } else {
-      playStation(station);
+      // Local mode: control local audio
+      if (currentStation?.id === station.id) {
+        togglePlay();
+      } else {
+        playStation(station);
+      }
     }
   };
 
@@ -55,7 +72,7 @@ export function StationList({ className }: StationListProps) {
               key={station.id}
               station={station}
               isActive={currentStation?.id === station.id}
-              isPlaying={currentStation?.id === station.id && isPlaying}
+              isPlaying={currentStation?.id === station.id && (remoteConnected ? remotePlaying : isPlaying)}
               onPlay={() => handleStationClick(station)}
               onEdit={() => handleEdit(station)}
               onDelete={() => handleDelete(station.id)}

@@ -87,12 +87,34 @@ export function AetherApp() {
           case 'VOLUME':
             store.setVolume(typeof _payload === 'number' ? _payload : 0.8);
             break;
-          case 'PLAY_STATION':
+          case 'PLAY_STATION': {
+            // Accept both { name, url } object and plain string (backward compat)
+            let playUrl = '';
+            let playName = '';
             if (typeof _payload === 'string') {
-              const station = store.stations.find(s => s.url === _payload);
-              if (station) store.playStation(station);
+              playUrl = _payload;
+              const found = store.stations.find(s => s.url === _payload);
+              if (found) {
+                store.playStation(found);
+              } else if (playUrl) {
+                // Not in server list — create temporary station and play it
+                store.playStation({ id: crypto.randomUUID(), name: playUrl.split('/').pop() || playUrl, url: playUrl });
+              }
+            } else if (_payload && typeof _payload === 'object' && 'url' in _payload) {
+              const obj = _payload as { name?: string; url: string };
+              playUrl = obj.url;
+              playName = obj.name || '';
+              // First check if server already has this URL in its list
+              const found = store.stations.find(s => s.url === playUrl);
+              if (found) {
+                store.playStation(found);
+              } else if (playUrl) {
+                // Not in server list — create temp station from remote's data and play
+                store.playStation({ id: crypto.randomUUID(), name: playName || playUrl.split('/').pop() || playUrl, url: playUrl });
+              }
             }
             break;
+          }
         }
       },
     });
