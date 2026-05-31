@@ -74,8 +74,8 @@ export function PlayerView({
       <div className="flex-1 min-h-0 overflow-hidden" style={{ padding: '0 clamp(0.25rem, 1vw, 0.5rem)' }}>
         <div ref={layoutRef} onScroll={handleScroll} className="player-layout h-full">
 
-          {/* ── Player Controls ── */}
-          <div className="player-controls-area">
+          {/* ── Player Controls (hidden in portrait when mini player is showing) ── */}
+          <div className={cn('player-controls-area', miniPlayer && 'player-controls-hidden')}>
             <div className="glass-panel">
               <AudioPlayer
                 onTogglePlay={onTogglePlay}
