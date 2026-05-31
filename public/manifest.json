@@ -1,0 +1,28 @@
+{
+  "name": "Aether Pro — Internet Radio",
+  "short_name": "Aether Pro",
+  "description": "Dark-themed internet radio streaming app with remote control, RDS ticker, and equalizer visualization.",
+  "start_url": "/zbai/",
+  "scope": "/zbai/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#030305",
+  "background_color": "#030305",
+  "categories": ["music", "entertainment"],
+  "icons": [
+    {
+      "src": "/zbai/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/zbai/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
