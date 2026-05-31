@@ -24,7 +24,6 @@ export function useAudio() {
   useEffect(() => {
     if (typeof window !== 'undefined' && !audioRef.current) {
       audioRef.current = new Audio();
-      audioRef.current.crossOrigin = 'anonymous';
       audioRef.current.preload = 'none';
     }
     return () => {
